@@ -42,31 +42,29 @@
           <tr v-for="file in files" :key="file.id">
             <td class="file-name-col">{{ file.fileName }}</td>
             <td class="status-col">
-              <span :class="['status-tag', file.status]">
-                {{ file.status === 'pending' ? '等待分析' : 
-                   file.status === 'analyzing' ? '分析中' : 
-                   file.status === 'completed' ? '分析完成' : '失败' }}
+              <span :class="['status-tag', getStatusClass(file.status)]">
+                {{ getStatusText(file.status) }}
               </span>
             </td>
             <td class="action-col">
               <button 
                 class="analyze-btn" 
                 @click="startAnalysis(file)"
-                :disabled="file.status === 'analyzing' || file.status === 'completed'"
+                :disabled="file.status === 'ANALYZING' || file.status === 'COMPLETED'"
               >
                 开始分析
               </button>
               <button 
                 class="download-btn" 
                 @click="downloadResult(file)"
-                :disabled="file.status !== 'completed'"
+                :disabled="file.status !== 'COMPLETED'"
               >
                 下载结果
               </button>
               <button 
                 class="error-btn" 
                 @click="viewError(file)"
-                :disabled="file.status !== 'failed'"
+                :disabled="file.status !== 'FAILED'"
               >
                 查看错误
               </button>
@@ -340,10 +338,32 @@ export default {
       }
     },
     
+    // 获取状态中文文本
+    getStatusText(status) {
+      const statusMap = {
+        'UPLOADED': '等待分析',
+        'ANALYZING': '分析中',
+        'COMPLETED': '分析完成',
+        'FAILED': '失败'
+      }
+      return statusMap[status] || status
+    },
+    
+    // 获取状态对应的CSS类
+    getStatusClass(status) {
+      const classMap = {
+        'UPLOADED': 'pending',
+        'ANALYZING': 'analyzing',
+        'COMPLETED': 'completed',
+        'FAILED': 'failed'
+      }
+      return classMap[status] || ''
+    },
+    
     // 查看错误
     viewError(file) {
       // 这里可以根据实际需求实现，例如弹出错误详情模态框
-      alert(`文件 ${file.fileName} 的错误信息：${file.error || '未知错误'}`)
+      alert(`文件 ${file.fileName} 的错误信息：${file.errorMessage || '未知错误'}`)
     },
     
     // 切换页码
