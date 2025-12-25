@@ -141,7 +141,7 @@ export default {
     // 每5秒刷新一次列表，更新状态
     this.refreshInterval = setInterval(() => {
       this.getFiles()
-    }, 5000)
+    }, 60000)
   },
   beforeUnmount() {
     // 组件销毁前清除定时器
@@ -162,11 +162,22 @@ export default {
         })
         
         const pageData = response.data
-        this.files = pageData.content
-        this.totalElements = pageData.totalElements
-        this.totalPages = pageData.totalPages
+        // 空值检查，确保分页数据安全处理
+        this.files = Array.isArray(pageData.content) ? pageData.content : []
+        this.totalElements = Number(pageData.totalElements) || 0
+        this.totalPages = Number(pageData.totalPages) || 0
+        
+        // 如果当前页没有数据且不是第一页，则跳转到前一页
+        if (this.files.length === 0 && this.currentPage > 1) {
+          this.currentPage--
+          this.getFiles()
+        }
       } catch (error) {
         console.error('获取文件列表失败:', error)
+        // 发生错误时重置列表数据，避免页面显示异常
+        this.files = []
+        this.totalElements = 0
+        this.totalPages = 0
       } finally {
         this.loading = false
       }
