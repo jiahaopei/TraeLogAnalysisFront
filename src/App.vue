@@ -273,7 +273,14 @@ export default {
         this.loading = true
         this.closeError()
         await axios.post(`${API_BASE_URL}/api/analysis/start/${file.id}`)
-        this.showError('分析已开始', false) // 显示成功提示
+        // 显示成功提示
+        this.errorMessage = '分析已开始'
+        this.errorVisible = true
+        this.isErrorMessage = false
+        // 5秒后自动关闭提示
+        setTimeout(() => {
+          this.closeError()
+        }, 5000)
         // 刷新文件列表
         this.getFiles()
       } catch (error) {
