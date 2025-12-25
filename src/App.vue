@@ -44,6 +44,13 @@
             </td>
             <td class="action-col">
               <button 
+                class="analyze-btn" 
+                @click="startAnalysis(file)"
+                :disabled="file.status === 'analyzing' || file.status === 'completed'"
+              >
+                开始分析
+              </button>
+              <button 
                 class="download-btn" 
                 @click="downloadResult(file)"
                 :disabled="file.status !== 'completed'"
@@ -144,6 +151,14 @@ export default {
       if (file.status === 'failed') {
         alert(`文件 ${file.name} 的错误信息：${file.error}`)
       }
+    },
+    
+    // 开始分析
+    startAnalysis(file) {
+      // 设置状态为等待分析
+      file.status = 'pending'
+      // 调用模拟分析方法
+      this.simulateAnalysis(file)
     }
   }
 }
@@ -271,6 +286,7 @@ export default {
   gap: 10px;
 }
 
+.analyze-btn,
 .download-btn,
 .error-btn {
   padding: 8px 16px;
@@ -279,6 +295,20 @@ export default {
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+}
+
+.analyze-btn {
+  background-color: #ff9800;
+  color: white;
+}
+
+.analyze-btn:hover:not(:disabled) {
+  background-color: #f57c00;
+}
+
+.analyze-btn:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
 }
 
 .download-btn {
