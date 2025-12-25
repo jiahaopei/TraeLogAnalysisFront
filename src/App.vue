@@ -16,14 +16,14 @@
       </button>
       
       <!-- 上传成功提示 -->
-      <div v-if="uploadedFiles.length > 0" class="upload-success">
+      <div v-if="uploadSuccess" class="upload-success">
         <span class="checkmark">✓</span>
-        <span class="file-name">{{ uploadedFiles[uploadedFiles.length - 1].name }}</span>
+        <span class="file-name">{{ uploadSuccess }}</span>
       </div>
     </div>
     
     <!-- 分析结果列表 -->
-    <div class="result-section" v-if="uploadedFiles.length > 0">
+    <div class="result-section" v-if="totalElements > 0">
       <table class="result-table">
         <thead>
           <tr>
@@ -33,8 +33,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="file in uploadedFiles" :key="file.id">
-            <td class="file-name-col">{{ file.name }}</td>
+          <tr v-for="file in files" :key="file.id">
+            <td class="file-name-col">{{ file.fileName }}</td>
             <td class="status-col">
               <span :class="['status-tag', file.status]">
                 {{ file.status === 'pending' ? '等待分析' : 
@@ -68,6 +68,47 @@
           </tr>
         </tbody>
       </table>
+      
+      <!-- 分页控件 -->
+      <div class="pagination">
+        <button 
+          @click="changePage(1)" 
+          :disabled="currentPage === 1"
+          class="page-btn"
+        >
+          首页
+        </button>
+        <button 
+          @click="changePage(currentPage - 1)" 
+          :disabled="currentPage === 1"
+          class="page-btn"
+        >
+          上一页
+        </button>
+        <span class="page-info">
+          第 {{ currentPage }} 页 / 共 {{ totalPages }} 页
+        </span>
+        <button 
+          @click="changePage(currentPage + 1)" 
+          :disabled="currentPage === totalPages"
+          class="page-btn"
+        >
+          下一页
+        </button>
+        <button 
+          @click="changePage(totalPages)" 
+          :disabled="currentPage === totalPages"
+          class="page-btn"
+        >
+          末页
+        </button>
+        <select v-model="pageSize" @change="changePageSize" class="page-size-select">
+          <option :value="5">5条/页</option>
+          <option :value="10">10条/页</option>
+          <option :value="20">20条/页</option>
+          <option :value="50">50条/页</option>
+        </select>
+      </div>
     </div>
     
     <!-- 空状态提示 -->
@@ -78,87 +119,165 @@
 </template>
 
 <script>
+import axios from 'axios'
+import { API_BASE_URL } from './config'
+
 export default {
   name: 'App',
   data() {
     return {
-      uploadedFiles: [],
-      fileIdCounter: 0
+      files: [], // 当前页的文件列表
+      totalElements: 0, // 总记录数
+      totalPages: 0, // 总页数
+      currentPage: 1, // 当前页码
+      pageSize: 10, // 每页大小
+      uploadSuccess: '', // 上传成功提示
+      loading: false // 加载状态
+    }
+  },
+  mounted() {
+    // 页面加载时获取文件列表
+    this.getFiles()
+    // 每5秒刷新一次列表，更新状态
+    this.refreshInterval = setInterval(() => {
+      this.getFiles()
+    }, 5000)
+  },
+  beforeUnmount() {
+    // 组件销毁前清除定时器
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval)
     }
   },
   methods: {
-    handleFileUpload(event) {
+    // 获取文件列表
+    async getFiles() {
+      try {
+        this.loading = true
+        const response = await axios.get(`${API_BASE_URL}/api/files/page`, {
+          params: {
+            page: this.currentPage - 1, // 后端是从0开始的页码
+            size: this.pageSize
+          }
+        })
+        
+        const pageData = response.data
+        this.files = pageData.content
+        this.totalElements = pageData.totalElements
+        this.totalPages = pageData.totalPages
+      } catch (error) {
+        console.error('获取文件列表失败:', error)
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 上传文件
+    async handleFileUpload(event) {
       const file = event.target.files[0]
       if (file) {
-        // 模拟上传成功，初始状态为等待分析
-        const newFile = {
-          id: this.fileIdCounter++,
-          name: file.name,
-          file: file,
-          status: 'pending', // pending: 等待分析, analyzing: 分析中, completed: 分析完成, failed: 失败
-          error: null
+        try {
+          this.loading = true
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          const response = await axios.post(`${API_BASE_URL}/api/files/upload`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+          
+          // 显示上传成功提示
+          this.uploadSuccess = response.data.fileName
+          // 3秒后清除提示
+          setTimeout(() => {
+            this.uploadSuccess = ''
+          }, 3000)
+          
+          // 刷新文件列表
+          this.getFiles()
+          
+          // 清空文件输入，以便可以重复上传同一个文件
+          event.target.value = ''
+        } catch (error) {
+          console.error('上传文件失败:', error)
+          alert('文件上传失败，请重试')
+        } finally {
+          this.loading = false
         }
-        this.uploadedFiles.push(newFile)
-        
-        // 模拟分析过程
-        this.simulateAnalysis(newFile)
-        
-        // 清空文件输入，以便可以重复上传同一个文件
-        event.target.value = ''
-      }
-    },
-    
-    // 模拟分析过程
-    simulateAnalysis(file) {
-      // 1秒后状态变为分析中
-      setTimeout(() => {
-        file.status = 'analyzing'
-        
-        // 3秒后随机变为分析完成或失败
-        setTimeout(() => {
-          // 80%的概率成功，20%的概率失败
-          if (Math.random() > 0.2) {
-            file.status = 'completed'
-          } else {
-            file.status = 'failed'
-            file.error = '分析过程中发生错误，无法完成处理。'
-          }
-        }, 3000)
-      }, 1000)
-    },
-    
-    downloadResult(file) {
-      if (file.status === 'completed') {
-        // 模拟下载功能
-        // 在实际应用中，这里应该调用后端API获取处理后的文件
-        alert(`正在下载${file.name}的处理结果...`)
-        
-        // 模拟生成一个简单的txt文件进行下载
-        const content = `这是${file.name}的处理结果示例`
-        const blob = new Blob([content], { type: 'text/plain' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${file.name}_result.txt`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-      }
-    },
-    
-    viewError(file) {
-      if (file.status === 'failed') {
-        alert(`文件 ${file.name} 的错误信息：${file.error}`)
       }
     },
     
     // 开始分析
-    startAnalysis(file) {
-      // 设置状态为等待分析
-      file.status = 'pending'
-      // 调用模拟分析方法
-      this.simulateAnalysis(file)
+    async startAnalysis(file) {
+      try {
+        this.loading = true
+        await axios.post(`${API_BASE_URL}/api/analysis/start/${file.id}`)
+        alert('分析已开始')
+        // 刷新文件列表
+        this.getFiles()
+      } catch (error) {
+        console.error('开始分析失败:', error)
+        alert('开始分析失败，请重试')
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 下载结果
+    async downloadResult(file) {
+      try {
+        this.loading = true
+        const response = await axios.get(`${API_BASE_URL}/api/results/export/${file.id}`, {
+          responseType: 'blob' // 重要：设置响应类型为blob
+        })
+        
+        // 从响应头中获取文件名
+        const contentDisposition = response.headers['content-disposition']
+        let fileName = `${file.fileName}_result.xlsx`
+        if (contentDisposition) {
+          const match = contentDisposition.match(/filename="?([^"]+)"?/)
+          if (match && match[1]) {
+            fileName = match[1]
+          }
+        }
+        
+        // 创建下载链接
+        const blob = new Blob([response.data])
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = fileName
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      } catch (error) {
+        console.error('下载结果失败:', error)
+        alert('下载结果失败，请重试')
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    // 查看错误
+    viewError(file) {
+      // 这里可以根据实际需求实现，例如弹出错误详情模态框
+      alert(`文件 ${file.fileName} 的错误信息：${file.error || '未知错误'}`)
+    },
+    
+    // 切换页码
+    changePage(page) {
+      if (page >= 1 && page <= this.totalPages) {
+        this.currentPage = page
+        this.getFiles()
+      }
+    },
+    
+    // 切换每页大小
+    changePageSize() {
+      this.currentPage = 1 // 重置到第一页
+      this.getFiles()
     }
   }
 }
@@ -346,5 +465,60 @@ export default {
   padding: 40px 0;
   background-color: #f5f5f5;
   border-radius: 4px;
+}
+
+/* 分页样式 */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.page-btn {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background-color: #fff;
+  color: #333;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background-color: #f5f5f5;
+  border-color: #2196F3;
+  color: #2196F3;
+}
+
+.page-btn:disabled {
+  background-color: #f5f5f5;
+  border-color: #ddd;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-size: 14px;
+  color: #666;
+  margin: 0 10px;
+}
+
+.page-size-select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background-color: #fff;
+  color: #333;
+  cursor: pointer;
+}
+
+.page-size-select:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
 }
 </style>
