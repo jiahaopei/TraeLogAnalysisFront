@@ -2,6 +2,12 @@
   <div class="container">
     <h1 class="title">日志智能分析系统</h1>
     
+    <!-- 错误提示 -->
+    <div v-if="errorVisible" :class="['error-message', { 'is-success': !isErrorMessage }]">
+      <span class="error-text">{{ errorMessage }}</span>
+      <button class="close-btn" @click="closeError">×</button>
+    </div>
+    
     <!-- 上传按钮 -->
     <div class="upload-section">
       <input 
@@ -132,7 +138,10 @@ export default {
       currentPage: 1, // 当前页码
       pageSize: 10, // 每页大小
       uploadSuccess: '', // 上传成功提示
-      loading: false // 加载状态
+      loading: false, // 加载状态
+      errorMessage: '', // 错误提示信息
+      errorVisible: false, // 错误提示是否显示
+      isErrorMessage: true // 是否是错误信息，false为成功信息
     }
   },
   mounted() {
@@ -150,10 +159,30 @@ export default {
     }
   },
   methods: {
+    // 显示错误或成功信息
+    showError(message, isError = true) {
+      this.errorMessage = message
+      this.errorVisible = true
+      this.isErrorMessage = isError
+      // 5秒后自动关闭提示
+      setTimeout(() => {
+        this.closeError()
+      }, 5000)
+    },
+    
+    // 关闭错误信息
+    closeError() {
+      this.errorVisible = false
+      this.errorMessage = ''
+    },
+    
     // 获取文件列表
     async getFiles() {
       try {
         this.loading = true
+        // 关闭之前的错误提示
+        this.closeError()
+        
         const response = await axios.get(`${API_BASE_URL}/api/files/page`, {
           params: {
             page: this.currentPage - 1, // 后端是从0开始的页码
@@ -178,6 +207,18 @@ export default {
         this.files = []
         this.totalElements = 0
         this.totalPages = 0
+        
+        // 显示友好的错误提示
+        if (error.response) {
+          // 服务器返回错误响应
+          this.showError(`获取文件列表失败：${error.response.status} ${error.response.statusText}`)
+        } else if (error.request) {
+          // 请求已发送但没有收到响应
+          this.showError('获取文件列表失败：无法连接到服务器，请检查后端服务是否运行')
+        } else {
+          // 请求配置错误
+          this.showError(`获取文件列表失败：${error.message}`)
+        }
       } finally {
         this.loading = false
       }
@@ -189,6 +230,7 @@ export default {
       if (file) {
         try {
           this.loading = true
+          this.closeError()
           const formData = new FormData()
           formData.append('file', file)
           
@@ -212,7 +254,13 @@ export default {
           event.target.value = ''
         } catch (error) {
           console.error('上传文件失败:', error)
-          alert('文件上传失败，请重试')
+          if (error.response) {
+            this.showError(`上传文件失败：${error.response.status} ${error.response.statusText}`)
+          } else if (error.request) {
+            this.showError('上传文件失败：无法连接到服务器，请检查后端服务是否运行')
+          } else {
+            this.showError(`上传文件失败：${error.message}`)
+          }
         } finally {
           this.loading = false
         }
@@ -223,13 +271,20 @@ export default {
     async startAnalysis(file) {
       try {
         this.loading = true
+        this.closeError()
         await axios.post(`${API_BASE_URL}/api/analysis/start/${file.id}`)
-        alert('分析已开始')
+        this.showError('分析已开始', false) // 显示成功提示
         // 刷新文件列表
         this.getFiles()
       } catch (error) {
         console.error('开始分析失败:', error)
-        alert('开始分析失败，请重试')
+        if (error.response) {
+          this.showError(`开始分析失败：${error.response.status} ${error.response.statusText}`)
+        } else if (error.request) {
+          this.showError('开始分析失败：无法连接到服务器，请检查后端服务是否运行')
+        } else {
+          this.showError(`开始分析失败：${error.message}`)
+        }
       } finally {
         this.loading = false
       }
@@ -239,6 +294,7 @@ export default {
     async downloadResult(file) {
       try {
         this.loading = true
+        this.closeError()
         const response = await axios.get(`${API_BASE_URL}/api/results/export/${file.id}`, {
           responseType: 'blob' // 重要：设置响应类型为blob
         })
@@ -265,7 +321,13 @@ export default {
         URL.revokeObjectURL(url)
       } catch (error) {
         console.error('下载结果失败:', error)
-        alert('下载结果失败，请重试')
+        if (error.response) {
+          this.showError(`下载结果失败：${error.response.status} ${error.response.statusText}`)
+        } else if (error.request) {
+          this.showError('下载结果失败：无法连接到服务器，请检查后端服务是否运行')
+        } else {
+          this.showError(`下载结果失败：${error.message}`)
+        }
       } finally {
         this.loading = false
       }
@@ -476,6 +538,53 @@ export default {
   padding: 40px 0;
   background-color: #f5f5f5;
   border-radius: 4px;
+}
+
+/* 错误提示样式 */
+.error-message {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  transition: all 0.3s ease;
+}
+
+.error-message:not(.is-success) {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.error-message.is-success {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.error-text {
+  flex: 1;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+  margin-left: 12px;
+  line-height: 1;
+}
+
+.close-btn:hover {
+  opacity: 0.7;
 }
 
 /* 分页样式 */
