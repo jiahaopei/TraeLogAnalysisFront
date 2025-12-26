@@ -119,6 +119,29 @@
     <div v-else class="empty-state">
       暂无上传文件
     </div>
+    
+    <!-- 错误详情模态框 -->
+    <div v-if="detailModalVisible" class="modal-overlay" @click="closeDetailModal">
+      <div class="modal" @click.stop>
+        <div class="modal-header">
+          <h3>错误详情</h3>
+          <button class="modal-close" @click="closeDetailModal">×</button>
+        </div>
+        <div class="modal-content">
+          <div class="modal-field">
+            <label>文件名称：</label>
+            <span>{{ detailFileName }}</span>
+          </div>
+          <div class="modal-field">
+            <label>错误信息：</label>
+            <textarea readonly class="error-textarea">{{ detailErrorMessage }}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-btn" @click="closeDetailModal">确定</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -139,7 +162,11 @@ export default {
       loading: false, // 加载状态
       errorMessage: '', // 错误提示信息
       errorVisible: false, // 错误提示是否显示
-      isErrorMessage: true // 是否是错误信息，false为成功信息
+      isErrorMessage: true, // 是否是错误信息，false为成功信息
+      // 错误详情模态框
+      detailModalVisible: false, // 模态框是否显示
+      detailFileName: '', // 错误文件名称
+      detailErrorMessage: '' // 详细错误信息
     }
   },
   mounted() {
@@ -362,8 +389,17 @@ export default {
     
     // 查看错误
     viewError(file) {
-      // 这里可以根据实际需求实现，例如弹出错误详情模态框
-      alert(`文件 ${file.fileName} 的错误信息：${file.errorMessage || '未知错误'}`)
+      // 显示错误详情模态框
+      this.detailFileName = file.fileName
+      this.detailErrorMessage = file.errorMessage || '未知错误'
+      this.detailModalVisible = true
+    },
+    
+    // 关闭错误详情模态框
+    closeDetailModal() {
+      this.detailModalVisible = false
+      this.detailFileName = ''
+      this.detailErrorMessage = ''
     },
     
     // 切换页码
@@ -667,5 +703,157 @@ export default {
   outline: none;
   border-color: #2196F3;
   box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
+/* 模态框样式 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+.modal {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideIn 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  border-radius: 8px 8px 0 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.modal-close:hover {
+  background-color: #ef4444;
+  color: #fff;
+}
+
+.modal-content {
+  padding: 20px;
+}
+
+.modal-field {
+  margin-bottom: 20px;
+}
+
+.modal-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #374151;
+  font-size: 14px;
+}
+
+.modal-field span {
+  display: block;
+  padding: 8px 12px;
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  color: #111827;
+  font-size: 14px;
+}
+
+.error-textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  background-color: #f3f4f6;
+  color: #111827;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.error-textarea:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 20px;
+  border-top: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+  border-radius: 0 0 8px 8px;
+}
+
+.modal-btn {
+  padding: 8px 16px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.modal-btn:hover {
+  background-color: #0b7dda;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 </style>
