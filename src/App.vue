@@ -210,15 +210,15 @@ export default {
         
         const response = await axios.get(`${API_BASE_URL}/api/files/page`, {
           params: {
-            page: this.currentPage - 1, // 后端是从0开始的页码
+            page: this.currentPage, // 后端现在是从1开始的页码
             size: this.pageSize
           }
         })
         
         const pageData = response.data
         // 空值检查，确保分页数据安全处理
-        this.files = Array.isArray(pageData.content) ? pageData.content : []
-        this.totalElements = Number(pageData.totalElements) || 0
+        this.files = Array.isArray(pageData.data) ? pageData.data : []
+        this.totalElements = Number(pageData.total) || 0
         this.totalPages = Number(pageData.totalPages) || 0
         
         // 如果当前页没有数据且不是第一页，则跳转到前一页
