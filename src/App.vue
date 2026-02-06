@@ -17,8 +17,13 @@
         @change="handleFileUpload"
         style="display: none;"
       />
-      <button class="upload-btn" @click="$refs.fileInput.click()">
-        上传Excel文件
+      <button class="upload-btn" @click="$refs.fileInput.click()" :disabled="uploading">
+        <span v-if="uploading">上传中...</span>
+        <span v-else>上传Excel文件</span>
+      </button>
+      <button class="upload-btn" @click="reloadSourceCode" :disabled="loading">
+        <span v-if="loading">刷新中...</span>
+        <span v-else>刷新代码</span>
       </button>
       
       <!-- 上传成功提示 -->
@@ -160,6 +165,7 @@ export default {
       pageSize: 10, // 每页大小
       uploadSuccess: '', // 上传成功提示
       loading: false, // 加载状态
+      uploading: false, // 上传中状态，专门用于控制上传按钮
       errorMessage: '', // 错误提示信息
       errorVisible: false, // 错误提示是否显示
       isErrorMessage: true, // 是否是错误信息，false为成功信息
@@ -254,6 +260,7 @@ export default {
       const file = event.target.files[0]
       if (file) {
         try {
+          this.uploading = true
           this.loading = true
           this.closeError()
           const formData = new FormData()
@@ -287,6 +294,7 @@ export default {
             this.showError(`上传文件失败：${error.message}`)
           }
         } finally {
+          this.uploading = false
           this.loading = false
         }
       }
@@ -414,6 +422,36 @@ export default {
     changePageSize() {
       this.currentPage = 1 // 重置到第一页
       this.getFiles()
+    },
+    
+    // 刷新代码
+    async reloadSourceCode() {
+      try {
+        this.loading = true
+        this.closeError()
+        const response = await axios.post(`${API_BASE_URL}/api/sourcecode/reload`)
+        // 弹出返回的字符串
+        alert(response.data)
+        // 显示成功提示
+        this.errorMessage = '代码刷新成功'
+        this.errorVisible = true
+        this.isErrorMessage = false
+        // 5秒后自动关闭提示
+        setTimeout(() => {
+          this.closeError()
+        }, 5000)
+      } catch (error) {
+        console.error('刷新代码失败:', error)
+        if (error.response) {
+          this.showError(`刷新代码失败：${error.response.status} ${error.response.statusText}`)
+        } else if (error.request) {
+          this.showError('刷新代码失败：无法连接到服务器，请检查后端服务是否运行')
+        } else {
+          this.showError(`刷新代码失败：${error.message}`)
+        }
+      } finally {
+        this.loading = false
+      }
     }
   }
 }
