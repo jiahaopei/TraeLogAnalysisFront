@@ -429,7 +429,7 @@ export default {
       try {
         this.loading = true
         this.closeError()
-        const response = await axios.post(`${API_BASE_URL}/api/sourcecode/reload`)
+        const response = await axios.get(`${API_BASE_URL}/api/sourcecode/reload`)
         // 弹出返回的字符串
         alert(response.data)
         // 显示成功提示
