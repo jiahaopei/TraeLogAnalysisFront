@@ -21,6 +21,17 @@
         <span v-if="uploading">上传中...</span>
         <span v-else>上传Excel文件</span>
       </button>
+      <input 
+        type="file" 
+        ref="codeFileInput" 
+        accept=".zip, .tar.gz" 
+        @change="handleCodeFileUpload"
+        style="display: none;"
+      />
+      <button class="upload-btn" @click="$refs.codeFileInput.click()" :disabled="uploading">
+        <span v-if="uploading">上传中...</span>
+        <span v-else>上传代码文件</span>
+      </button>
       <button class="upload-btn" @click="reloadSourceCode" :disabled="loading">
         <span v-if="loading">刷新中...</span>
         <span v-else>刷新代码</span>
@@ -422,6 +433,52 @@ export default {
     changePageSize() {
       this.currentPage = 1 // 重置到第一页
       this.getFiles()
+    },
+    
+    // 上传代码文件
+    async handleCodeFileUpload(event) {
+      const file = event.target.files[0]
+      if (file) {
+        try {
+          this.uploading = true
+          this.loading = true
+          this.closeError()
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          const response = await axios.post(`${API_BASE_URL}/api/sourcecode/upload`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          })
+          
+          // 弹出返回的字符串
+          alert(response.data)
+          // 显示成功提示
+          this.errorMessage = '代码文件上传成功'
+          this.errorVisible = true
+          this.isErrorMessage = false
+          // 5秒后自动关闭提示
+          setTimeout(() => {
+            this.closeError()
+          }, 5000)
+          
+          // 清空文件输入，以便可以重复上传同一个文件
+          event.target.value = ''
+        } catch (error) {
+          console.error('上传代码文件失败:', error)
+          if (error.response) {
+            this.showError(`上传代码文件失败：${error.response.status} ${error.response.statusText}`)
+          } else if (error.request) {
+            this.showError('上传代码文件失败：无法连接到服务器，请检查后端服务是否运行')
+          } else {
+            this.showError(`上传代码文件失败：${error.message}`)
+          }
+        } finally {
+          this.uploading = false
+          this.loading = false
+        }
+      }
     },
     
     // 刷新代码
